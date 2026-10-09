@@ -427,6 +427,10 @@ async function boot() {
       if (target) target.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
     });
   });
+
+  // 登录已通过，此时才恢复上次所在的选项卡 —— 填报面板必须在已登录后才挂载，
+  // 否则它会在未登录状态下读到「被 RLS 过滤成空」的人员/项目（详见 restoreAppTab 注释）。
+  restoreAppTab();
 }
 
 function onDateJumpChange() {
@@ -541,11 +545,15 @@ document.querySelectorAll(".app-tab").forEach(b =>
   b.addEventListener("click", () => switchAppTab(b.dataset.appTab)));
 
 // 恢复上次所在选项卡
-(function restoreAppTab() {
+// ★ 只能在登录门禁通过之后调用（见 boot()）：填报面板一挂载就会去云端读人员/项目，
+//   而服务端 RLS 会把**未登录**的请求过滤成 0 行（200 空数组）——不是报错，是静默的空结果。
+//   于是选人下拉里只剩「管理员」，而且 reportMounted 已置 true，登录成功后也不会重挂，
+//   整个会话都恢复不过来（表现为「第一次登录选不了身份」）。
+function restoreAppTab() {
   let saved = "note";
   try { saved = localStorage.getItem(APP_TAB_KEY) || "note"; } catch { /* ignore */ }
   if (saved === "report") switchAppTab("report");
-})();
+}
 
 /* ================================================================
    关闭行为：点 X 后由 Rust 侧拦截并隐藏到系统托盘（不再销毁窗口）。

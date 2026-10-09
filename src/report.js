@@ -178,7 +178,12 @@ async function loadData() {
   // 冷启动时本地缓存已有上次的数据（cloud.js 的离线兜底）→ 先渲染，别让用户等网络
   const cachedStaff = peekCache('staff:active');
   const cachedProjects = peekCache('projects:list');
-  if (Array.isArray(cachedStaff) && Array.isArray(cachedProjects)) {
+  // ★ 空名单**不算缓存**：它可能来自「未登录时读过一次」——服务端 RLS 会把匿名请求
+  //   过滤成 0 行（200 空数组），并不是真的没有人员。若拿它先渲染，选人下拉里就只剩
+  //   「管理员」，而且因为走的是「先返回旧值」的捷径，后面也不会再刷新。
+  const useCache = Array.isArray(cachedStaff) && cachedStaff.length > 0
+    && Array.isArray(cachedProjects) && cachedProjects.length > 0;
+  if (useCache) {
     staff = cachedStaff;
     projects = cachedProjects;
     renderUserSlot();
@@ -188,7 +193,9 @@ async function loadData() {
     body.innerHTML = '<div class="rp-loading">正在连接数据池…</div>';
   }
   try {
-    const [s, p] = await Promise.all([fetchStaff(), fetchProjects()]);
+    // 没走缓存（或缓存不可信）时必须 force：否则 cachedRead 会把空数组当旧值直接返回，
+    // 这一次渲染就永远停在空名单上。
+    const [s, p] = await Promise.all([fetchStaff(!useCache), fetchProjects(!useCache)]);
     const fresh = { staff: s || [], projects: p || [] };
     // 和刚才先渲染的缓存一致就不重绘 —— 否则会把用户这几百毫秒里刚敲的字清掉
     const changed = !booted

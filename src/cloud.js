@@ -224,11 +224,14 @@ function load(key, loader) {
  * @param {string} key   缓存键
  * @param {Function} loader 真正取数的函数（返回 Promise）
  * @param {number} [ttl] 新鲜期，默认 90 秒
+ * @param {boolean} [force] 跳过「先返回旧值再后台刷新」的捷径，等一次真实请求。
+ *   调用方拿到的是**本次请求的结果**，而不是可能已经过期的旧值。
+ *   用于「上一次读到的是不可信数据（如未登录时被 RLS 过滤成空）」的场景。
  */
-export function cachedRead(key, loader, ttl = CACHE_TTL) {
+export function cachedRead(key, loader, ttl = CACHE_TTL, force = false) {
   const hit = CACHE.get(key);
-  if (hit) {
-    if (hit.inflight) return hit.inflight;
+  if (hit && hit.inflight) return hit.inflight;   // 有在途请求就复用它（force 也一样）
+  if (hit && !force) {
     const age = Date.now() - hit.at;
     if (age < ttl) return Promise.resolve(hit.data);
     if (hit.data !== undefined) {
@@ -294,7 +297,7 @@ async function loadStaff() {
       .order('sort_order', { ascending: true })
   );
 }
-export function fetchStaff() { return cachedRead('staff:active', loadStaff); }
+export function fetchStaff(force = false) { return cachedRead('staff:active', loadStaff, CACHE_TTL, force); }
 
 /** 全员（含未激活），管理员视图用 */
 async function loadStaffAll() {
@@ -341,7 +344,7 @@ async function loadProjects() {
       .order('sort_order', { ascending: true })
   );
 }
-export function fetchProjects() { return cachedRead('projects:list', loadProjects); }
+export function fetchProjects(force = false) { return cachedRead('projects:list', loadProjects, CACHE_TTL, force); }
 
 /**
  * 导出专用：拉取项目全字段（含金额、备注、GR、发票等）。
@@ -768,7 +771,7 @@ export async function addReview(r) {
   return saved;
 }
 
-/** 连通性自检：返回 { ok, count, error } */
+/* ============ 连通性自检：返回 { ok, count, error } ============ */
 export async function ping() {
   try {
     const cloud = await getCloud();
