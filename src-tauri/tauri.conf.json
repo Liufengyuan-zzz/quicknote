@@ -1,6 +1,6 @@
 {
   "productName": "QuickNote",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "identifier": "com.quicknote.app",
   "build": {
     "beforeDevCommand": "npm run dev",
