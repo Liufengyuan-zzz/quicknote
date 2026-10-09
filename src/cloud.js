@@ -91,8 +91,25 @@ function wrapTauriFetch(tauriFetch) {
   return async function fetchWithCloudOrigin(input, init = {}) {
     const headers = new Headers(init.headers || (input?.headers ?? undefined));
     headers.set('Origin', cloudOrigin()); // 触发插件保留该值（空串则退化为删除）
-    return tauriFetch(input, { ...init, headers });
+    try {
+      return await tauriFetch(input, { ...init, headers });
+    } catch (e) {
+      // tauri-plugin-http 的 Rust 侧 reject 的是**字符串**，不是 Error 实例。
+      // 云 SDK 用 `${err?.name ?? "FetchError"}: ${err?.message}` 拼报错文案——
+      // 字符串的 name / message 都是 undefined，界面上就只剩一句毫无信息量的
+      // 「FetchError: undefined」，真实原因（DNS / TLS / scope 拒绝…）全被吞掉。
+      // 这里统一包成 Error 把真实原因带出去。
+      if (e instanceof Error) throw e;
+      const detail = typeof e === 'string' ? e : safeStringify(e);
+      const wrapped = new Error(`tauri-http: ${detail || '(未知传输错误)'}`);
+      wrapped.cause = e;
+      throw wrapped;
+    }
   };
+}
+
+function safeStringify(v) {
+  try { return JSON.stringify(v); } catch { return String(v); }
 }
 
 async function resolveFetch() {
