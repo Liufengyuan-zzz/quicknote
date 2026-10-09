@@ -212,9 +212,16 @@ jobs:
           HAS_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
         run: |
           APP=$(find "src-tauri/target/${{ matrix.rust-target }}/release/bundle/macos" -maxdepth 1 -name '*.app' -print -quit)
+          [ -n "$APP" ] || { echo "::error::没找到 .app 产物"; exit 1; }
           echo "App bundle: $APP"
-          codesign -dv --verbose=4 "$APP" 2>&1 | head -20
-          info=$(codesign -dv "$APP" 2>&1 || true)
+
+          # ⚠️ 必须用 --verbose=4 抓取，不能只用 -dv。
+          #    codesign 的 Authority 行只在足够高的详细度下才打印；低级别输出里没有它，
+          #    结果就是「证书明明签好了，却被断言判成未签名」—— 这是 v1.6.3 首次发版的
+          #    真实故障（日志里能看到 Authority=Developer ID Application，断言却失败）。
+          #    这里只抓一次，然后把同一份内容既打印又用于断言，避免两者看到的不是一回事。
+          info=$(codesign -dv --verbose=4 "$APP" 2>&1 || true)
+          echo "$info"
 
           if [ "$HAS_CERT" = "true" ]; then
             echo "$info" | grep -q 'Developer ID Application' \
