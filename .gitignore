@@ -1,0 +1,29 @@
+# === 依赖 ===
+node_modules/
+
+# === 前端构建产物 ===
+dist/
+
+# === 本地环境变量（含云端连接参数，绝不提交）===
+# 模板见 .env.example；真实值放在 .env.local（构建时由 vite 注入）
+.env
+.env.local
+.env.*.local
+
+# === Rust 构建产物（本机已有 4.7GB，绝对不能提交）===
+src-tauri/target/
+
+# === 本地工作区数据（诊断残留、笔记）===
+.workbuddy/
+
+# === 图标目录中的临时调试残留（构建不需要，正式图标不带下划线前缀）===
+src-tauri/icons/_*
+
+# === 构建产物下载目录（CI artifact 落地处）===
+release-macos/
+release-windows/
+
+# === 系统 / 编辑器 ===
+.DS_Store
+Thumbs.db
+*.log

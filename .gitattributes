@@ -1,0 +1,15 @@
+# 统一用 LF 存储。
+# 本机 git 的 core.autocrlf=true，会把 CRLF 写进仓库；macOS 侧检出后
+# 可能在编译/脚本执行时出诡异问题。跨平台项目统一 LF 最稳。
+* text=auto eol=lf
+
+# 以下按二进制处理，不做任何行尾转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.icns  binary
+*.ttf   binary
+*.woff  binary
+*.woff2 binary

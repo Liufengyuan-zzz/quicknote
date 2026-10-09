@@ -1,0 +1,24 @@
+[[permission]]
+identifier = "allow-get-mouse-pos"
+description = "允许读取全局鼠标坐标"
+commands.allow = ["get_mouse_pos"]
+
+[[permission]]
+identifier = "allow-is-mouse-down"
+description = "允许检测鼠标左键是否按下"
+commands.allow = ["is_mouse_down"]
+
+[[permission]]
+identifier = "allow-frontend-ready"
+description = "允许前端通知 Rust 首屏已渲染完成，可以显示窗口"
+commands.allow = ["frontend_ready"]
+
+[[permission]]
+identifier = "allow-load-notes"
+description = "允许前端读取笔记数据（appDataDir/notes.json）"
+commands.allow = ["load_notes"]
+
+[[permission]]
+identifier = "allow-save-notes"
+description = "允许前端保存笔记数据（appDataDir/notes.json）"
+commands.allow = ["save_notes"]

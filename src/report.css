@@ -1,0 +1,908 @@
+/* ================================================================
+   项目填报面板（report.js）
+   与原有便签样式共存，前缀统一 rp-
+   ================================================================ */
+
+/* ---------- 顶部主选项卡（便签 / 填报） ---------- */
+.app-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.app-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 6px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.app-tab:hover { color: var(--text); }
+
+.app-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* 面板容器 */
+#note-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#report-panel { display: none; flex-direction: column; flex: 1; min-height: 0; }
+body.tab-report #note-panel { display: none; }
+body.tab-report #report-panel { display: flex; }
+
+/* ---------- 填报：选择栏 ---------- */
+.rp-bar {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.rp-select, .rp-date, .rp-input {
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 9px;
+  outline: none;
+  min-width: 0;
+}
+
+.rp-select:focus, .rp-date:focus, .rp-input:focus,
+.rp-textarea:focus { border-color: var(--accent); }
+
+.rp-select { flex: 1; }
+.rp-select.wide { width: 100%; flex: none; }
+.rp-date { width: 7.6rem; flex-shrink: 0; }
+.rp-input { width: 100%; }
+
+/* ---------- 填报：子选项卡 ---------- */
+.rp-tabs {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.rp-tab {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.rp-tab:hover { border-color: var(--text-3); }
+
+.rp-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ---------- 主体滚动区 ---------- */
+.rp-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.rp-body::-webkit-scrollbar { width: 5px; }
+.rp-body::-webkit-scrollbar-thumb {
+  background: #dcdcdc;
+  border-radius: 3px;
+}
+
+.rp-loading, .rp-empty {
+  color: var(--text-3);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 36px 0;
+}
+
+.rp-empty.small { padding: 16px 0; font-size: 0.76rem; }
+
+.rp-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 30px 12px;
+}
+
+.rp-err-msg {
+  color: var(--text-2);
+  font-size: 0.72rem;
+  margin: 8px 0 14px;
+  word-break: break-all;
+}
+
+/* ---------- 表单 ---------- */
+.rp-form {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rp-row2 { display: flex; gap: 8px; }
+.rp-row2 > * { flex: 1; min-width: 0; }
+
+.rp-subhead {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.3px;
+}
+
+.rp-textarea {
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 9px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.rp-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rp-btn:hover { border-color: var(--text-3); }
+.rp-btn:disabled { opacity: 0.55; cursor: default; }
+
+.rp-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.rp-btn.primary:hover:not(:disabled) { background: #1d4ed8; }
+
+/* ---------- 项目选择器 ---------- */
+.rp-proj-list {
+  max-height: 190px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+
+.rp-proj-list::-webkit-scrollbar { width: 5px; }
+.rp-proj-list::-webkit-scrollbar-thumb { background: #dcdcdc; border-radius: 3px; }
+
+/* 项目必选：字段标签 + 已选/未选状态提示 */
+.rp-pick-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.rp-req {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+.rp-req-hint {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.rp-req-hint.ok { color: var(--accent); }
+.rp-req-hint.warn {
+  color: var(--danger);
+  font-weight: 600;
+  animation: rpShake 0.3s ease 2;
+}
+@keyframes rpShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.rp-proj-item {
+  padding: 6px 9px;
+  border-bottom: 1px solid #f4f4f4;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: background 0.12s;
+}
+
+.rp-proj-item:last-child { border-bottom: none; }
+.rp-proj-item:hover { background: #f7f9fc; }
+
+.rp-proj-item.picked {
+  background: #eef4ff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.rp-proj-code {
+  font-size: 0.66rem;
+  color: var(--accent);
+  font-weight: 600;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.rp-proj-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.rp-proj-meta {
+  font-size: 0.66rem;
+  color: var(--text-3);
+}
+
+.rp-hint { padding: 10px; font-size: 0.72rem; color: var(--text-3); }
+
+/* ---------- 列表 ---------- */
+.rp-list-head {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 12px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rp-list-head.muted { color: var(--text-3); }
+
+.rp-count {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 0.64rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 9px;
+}
+
+.rp-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: var(--bg);
+}
+
+.rp-task-row.muted { background: var(--soft); opacity: 0.85; }
+
+/* 局部插入的新记录：一次性高亮脉冲，替代「整页重绘」的视觉反馈 */
+@keyframes rpNewIn {
+  0%   { opacity: 0; transform: translateY(-4px); background: #e8f2ff; border-color: #9ec5ff; }
+  55%  { opacity: 1; transform: none; background: #e8f2ff; border-color: #9ec5ff; }
+  100% { background: var(--bg); border-color: var(--border); }
+}
+.rp-task-row.rp-new { animation: rpNewIn 1.6s ease-out; }
+
+.rp-task-main { flex: 1; min-width: 0; }
+
+.rp-task-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.rp-who { font-size: 0.72rem; font-weight: 600; color: var(--text); }
+
+.rp-tag {
+  font-size: 0.62rem;
+  color: var(--accent);
+  background: #eef4ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.rp-tag.alt { color: var(--text-2); background: var(--soft); font-family: inherit; }
+
+/* 任务标签（填报记录里显示，与项目编号的蓝色区分开） */
+.rp-tag.tk { font-family: inherit; color: #0f766e; background: #e6fffb; }
+
+/* ---------- 任务选择（v1.5.4，员工填报用） ---------- */
+.rp-opt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+.rp-task-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-task-chip {
+  font-size: 0.74rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.rp-task-chip:hover { border-color: var(--accent); color: var(--accent); }
+.rp-task-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ---------- 身份锁定 / 人员管理 ---------- */
+.rp-user-slot { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rp-user-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border-radius: 999px;
+  background: var(--soft); color: var(--text-1);
+  font-size: 0.82rem; font-weight: 600; white-space: nowrap;
+}
+.rp-user-switch {
+  border: none; background: none; color: var(--text-3);
+  font-size: 0.72rem; cursor: pointer; padding: 2px 4px; white-space: nowrap;
+}
+.rp-user-switch:hover { color: var(--text-1); }
+.rp-user-hint { font-size: 0.68rem; color: var(--text-3); white-space: nowrap; }
+.rp-hint { font-size: 0.7rem; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
+.rp-tag.hours { color: #b45309; background: #fef3c7; font-family: inherit; }
+
+/* ---------- 工时（两段式填报：早上填内容，下班填工时） ---------- */
+
+/* 任务行右侧操作区：工时 chip + 删除 */
+.rp-task-side {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* 工时 chip：已填实色、未填虚线弱化 */
+.rp-hours-chip {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+  font-family: inherit;
+  font-size: 0.64rem;
+  padding: 2px 7px;
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.rp-hours-chip:hover { background: #fef3c7; }
+.rp-hours-chip.empty {
+  border-style: dashed;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-3);
+}
+.rp-hours-chip.empty:hover { border-color: #fcd34d; color: #b45309; }
+
+/* 行内工时编辑条 */
+.rp-hours-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  margin: -3px 0 6px;
+  border: 1px dashed #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  animation: rpHeIn 0.14s ease-out;
+}
+@keyframes rpHeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+.rp-he-label { font-size: 0.68rem; color: #92400e; white-space: nowrap; }
+.rp-he-input { width: 4.7rem; flex: 0 0 auto; }
+.rp-he-unit { font-size: 0.68rem; color: var(--text-3); white-space: nowrap; }
+.rp-hours-editor .rp-btn { padding: 4px 10px; font-size: 0.68rem; }
+.rp-hours-editor .rp-btn.primary { flex-shrink: 0; }
+
+.rp-stars { font-size: 0.7rem; color: #f59e0b; letter-spacing: 1px; }
+
+.rp-task-text {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.rp-task-proj {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* 表单内的说明性提示块（加边框，区别于既有的一行小字 .rp-hint） */
+.rp-note {
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: var(--text-3);
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.rp-del {
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.rp-del:hover { color: var(--danger); background: #fef2f2; }
+
+/* ---------- 评分星 ---------- */
+.rp-score {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--text-2);
+}
+
+.rp-star {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-3);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.74rem;
+  transition: all 0.12s;
+}
+
+.rp-star:hover { border-color: #f59e0b; color: #f59e0b; }
+
+.rp-star.on {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* ---------- 历史视图 ---------- */
+.rp-hist-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.rp-hist-total {
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+
+.rp-chip {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 0.68rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rp-chip:hover { border-color: var(--text-3); }
+
+.rp-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ================================================================
+   管理员视图（admin.js）
+   ================================================================ */
+
+/* 「管理」选项卡特殊着色，和普通员工视图区分开 */
+.rp-tab.admin { border-color: #c7d2fe; color: #4f46e5; }
+.rp-tab.admin.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+
+/* ---------- 口令锁 ---------- */
+.rp-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 22px;
+  text-align: center;
+}
+
+.rp-lock-icon { font-size: 1.9rem; line-height: 1; }
+
+.rp-lock-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rp-lock-desc {
+  font-size: 0.74rem;
+  color: var(--text-3);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.rp-lock .rp-input {
+  max-width: 220px;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.rp-lock .rp-btn { width: 9rem; }
+
+.rp-lock-msg {
+  font-size: 0.72rem;
+  color: var(--danger);
+  min-height: 1em;
+}
+
+/* ---------- 统计卡 ---------- */
+.rp-adm-stats {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rp-stat {
+  flex: 1;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rp-stat b {
+  font-size: 1.05rem;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.rp-stat span { font-size: 0.62rem; color: var(--text-3); }
+
+.rp-stat.warn { background: #fef2f2; border-color: #fecaca; }
+.rp-stat.warn b { color: var(--danger); }
+
+/* ---------- 操作栏 ---------- */
+.rp-adm-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.rp-adm-bar .rp-select { flex: 1; }
+.rp-adm-bar .rp-btn { flex-shrink: 0; padding: 7px 11px; font-size: 0.76rem; }
+
+.rp-angle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+/* ---------- 未报提醒 ---------- */
+.rp-unsub {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.rp-unsub-head {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.rp-unsub-names { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.rp-unsub-chip {
+  font-size: 0.68rem;
+  background: #fff;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* ---------- 项目名（按项目视角） ---------- */
+.rp-pj-name {
+  font-size: 0.74rem;
+  color: var(--text-2);
+  margin: -2px 0 6px;
+  line-height: 1.4;
+}
+
+/* ---------- 管理中枢（汇总/历史/项目维护 三合一） ---------- */
+.rp-adm-hubbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rp-adm-hubbar .rp-tabs { margin-bottom: 0; flex: 1; }
+.rp-adm-hubbar .rp-chip { flex-shrink: 0; }
+
+.rp-adm-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+
+/* ---------- 项目管理紧凑列表 ---------- */
+.rp-mini { display: flex; flex-direction: column; gap: 3px; }
+
+.rp-mini-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--soft);
+  font-size: 0.74rem;
+}
+
+.rp-mini-row[data-id] { cursor: pointer; transition: background 0.12s; }
+.rp-mini-row[data-id]:hover { background: var(--soft-2, rgba(0,0,0,0.06)); }
+
+.rp-mini-row .rp-proj-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-proj-money { color: #b45309; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-proj-edit {
+  opacity: 0;
+  color: var(--accent, #2563eb);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.12s;
+}
+.rp-mini-row[data-id]:hover .rp-proj-edit { opacity: 1; }
+/* 删除类操作：红色，与「编辑/停用」等温和操作区分 */
+.rp-proj-edit.danger { color: #b91c1c; }
+.rp-proj-edit.danger:hover { text-decoration: underline; }
+
+/* 人员管理行：操作按钮常显（无 data-id，不适用上面的 hover 规则） */
+.rp-staff-row .rp-proj-edit { opacity: 1; }
+.rp-staff-row .rp-proj-edit:hover { text-decoration: underline; }
+
+/* 项目行上的「任务」入口：常显（是信息不是纯操作），不跟随 hover */
+.rp-tk-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 0.68rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  background: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.rp-tk-btn.has { color: var(--accent); border-color: var(--accent); }
+.rp-tk-btn:hover { background: var(--soft); color: var(--accent); }
+
+/* 任务管理覆盖层 */
+.rp-tk-proj {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0 0 8px;
+}
+.rp-tk-add { display: flex; gap: 6px; margin-top: 10px; }
+.rp-tk-add .rp-input { flex: 1; min-width: 0; }
+.rp-tk-inline { flex: 1; min-width: 0; font-size: 0.74rem; padding: 2px 6px; }
+
+/* 已归档项目：整体降透明度 + 划掉名字，一眼区分 */
+.rp-mini-row-archived { opacity: 0.55; }
+.rp-mini-row-archived .rp-proj-name { text-decoration: line-through; }
+.rp-mini-row-archived .rp-proj-edit { opacity: 1; color: var(--text-3); }
+
+.rp-empty-mini {
+  padding: 10px 8px;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  background: var(--soft);
+  border-radius: 6px;
+}
+
+/* 归档开关条：标题 + 复选框 chip 同一行 */
+.rp-arch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+.rp-arch-bar .rp-list-head { margin: 0; flex: 1; }
+.rp-arch-bar .rp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-family: inherit;
+  user-select: none;
+}
+.rp-chip-box { font-size: 0.78rem; line-height: 1; }
+
+/* 编辑面板标题里的「已归档」标记 */
+.rp-arch-tag {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--soft-2, rgba(0,0,0,0.08));
+  color: var(--text-3);
+  border: 1px solid var(--border);
+}
+
+/* ---------- 项目表单（多字段网格） ---------- */
+.rp-pj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 10px;
+}
+
+.rp-fld { display: flex; flex-direction: column; gap: 3px; }
+.rp-fld > span { font-size: 0.68rem; opacity: 0.65; }
+.rp-fld .rp-input, .rp-fld .rp-select { width: 100%; box-sizing: border-box; }
+.rp-fld:nth-child(1), .rp-fld:nth-child(2) { grid-column: span 2; }
+
+/* 人员表单（3 字段等宽，覆盖上面的跨列规则） */
+.rp-staff-grid .rp-fld:nth-child(1),
+.rp-staff-grid .rp-fld:nth-child(2) { grid-column: auto; }
+
+.rp-form-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* ---------- 项目编辑覆盖层 ---------- */
+.rp-pj-editor {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4vh 12px;
+  z-index: 60;
+  overflow-y: auto;
+}
+
+.rp-pj-editor-inner {
+  background: var(--panel, #fff);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  width: min(720px, 100%);
+  padding: 14px 16px 16px;
+}
+
+.rp-pj-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+.rp-pj-editor-head > b { flex: 0 0 auto; }
+.rp-pj-editor-head .rp-proj-code { flex: 1; }
+.rp-pj-editor-body { max-height: 62vh; overflow-y: auto; }
+
+.rp-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.rp-icon-btn:hover { opacity: 1; background: var(--soft); }
+
+/* ---------- Toast ---------- */
+.report-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 14px);
+  background: #1f2937;
+  color: #fff;
+  font-size: 0.76rem;
+  padding: 8px 16px;
+  border-radius: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s, transform 0.22s;
+  z-index: 999;
+  max-width: 82%;
+  text-align: center;
+}
+
+.report-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.report-toast.err { background: var(--danger); }

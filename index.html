@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuickNote</title>
+  <!-- 内联关键样式：不等外部 CSS，首屏立刻有布局，避免白屏 -->
+  <style>
+    html, body { height: 100%; margin: 0; background: #fff; color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    #app { width: 100%; height: 100vh; display: flex; flex-direction: column; padding: 20px 28px 16px; box-sizing: border-box; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0; }
+    header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+    .header-right button { background: transparent; border: none; color: #666; cursor: pointer; font-size: 0.78rem; padding: 5px 10px; border-radius: 6px; font-family: inherit; }
+    .heatmap-section { flex-shrink: 0; margin-bottom: 12px; padding: 12px 14px; background: #fafafa; border: 1px solid #ececec; border-radius: 10px; min-height: 120px; }
+    .heatmap-title { font-size: 0.72rem; font-weight: 600; color: #aaa; }
+    .selected-date-label { font-size: 0.92rem; font-weight: 600; display: block; margin-top: 2px; }
+    .input-area { display: flex; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid #ececec; border-bottom: 1px solid #ececec; flex-shrink: 0; }
+    .input-area input { flex: 1; border: none; outline: none; font-size: 0.95rem; font-family: inherit; background: transparent; }
+    .input-area button { background: #2563eb; color: #fff; border: none; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    #note-list { list-style: none; flex: 1; overflow-y: auto; margin: 0; padding: 4px 0; }
+    footer { display: flex; justify-content: space-between; padding-top: 10px; flex-shrink: 0; font-size: 0.7rem; color: #aaa; }
+    #clear-done-btn { background: none; border: none; color: #aaa; font-size: 0.7rem; cursor: pointer; font-family: inherit; }
+    #boot-hint { color: #aaa; font-size: 0.85rem; text-align: center; padding: 40px 0; }
+    /* 登录门禁：未登录时覆盖全屏；卡片细节样式在 style.css（这里只保证不闪白） */
+    .auth-gate { position: fixed; inset: 0; z-index: 999; display: flex; align-items: center;
+      justify-content: center; background: #fff; padding: 24px; box-sizing: border-box; }
+    .auth-gate[hidden] { display: none; }
+    body.auth-locked #app { display: none; }
+  </style>
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/report.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <h1>QuickNote</h1>
+      </div>
+      <div class="header-right">
+        <button id="today-btn" title="回到今天">今天</button>
+        <button id="pin-btn" title="钉在桌面">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17v5"/>
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 顶部主选项卡：便签 / 项目填报 -->
+    <div class="app-tabs">
+      <button class="app-tab active" data-app-tab="note">便签</button>
+      <button class="app-tab" data-app-tab="report">项目填报</button>
+    </div>
+
+    <!-- 应用内更新提示条（由 updater.js 控制显隐，默认不占位） -->
+    <div id="update-bar" class="upd-bar" hidden></div>
+
+    <!-- ============ 面板 1：原有便签 ============ -->
+    <div id="note-panel">
+    <div class="heatmap-section">
+      <div class="heatmap-top">
+        <div class="heatmap-heading">
+          <span class="heatmap-title" id="heatmap-year-title">每日记录</span>
+          <span class="selected-date-label" id="selected-date-label">今天</span>
+        </div>
+        <div class="heatmap-day-stats" id="heatmap-day-stats" aria-live="polite"></div>
+      </div>
+      <div class="heatmap-nav">
+        <label class="heatmap-date-jump-label" for="date-jump">跳转日期</label>
+        <input type="date" id="date-jump" class="heatmap-date-jump" max="" />
+      </div>
+      <p class="heatmap-hint" id="heatmap-hint"></p>
+      <div class="heatmap-legend" aria-hidden="true">
+        <span class="heatmap-legend-label">记录数</span>
+        <span class="heatmap-legend-item"><i class="level-0"></i>无</span>
+        <span class="heatmap-legend-item"><i class="level-1"></i>少</span>
+        <span class="heatmap-legend-item"><i class="level-2"></i>中</span>
+        <span class="heatmap-legend-item"><i class="level-3"></i>多</span>
+        <span class="heatmap-legend-item"><i class="level-4"></i>很多</span>
+        <span class="heatmap-legend-item legend-sep"></span>
+        <span class="heatmap-legend-item"><i class="dot dot-weekend"></i>周末</span>
+        <span class="heatmap-legend-item"><i class="dot dot-holiday"></i>法定假日</span>
+        <span class="heatmap-legend-item"><i class="dot dot-work"></i>调休上班</span>
+      </div>
+      <div class="heatmap-scroll">
+        <div class="heatmap-board" id="heatmap-board"></div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input type="text" id="note-input" placeholder="添加新记录..." autofocus />
+      <button id="add-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </div>
+    <ul id="note-list"><div id="boot-hint">正在加载…</div></ul>
+    <footer>
+      <span class="footer-left">
+        <span id="note-count">0 条记录</span>
+        <button id="app-version" class="app-version" title="检查更新"></button>
+        <button id="sign-out-btn" class="app-version" title="退出登录">退出</button>
+      </span>
+      <button id="clear-done-btn">清除已完成</button>
+    </footer>
+    </div><!-- /#note-panel -->
+
+    <!-- ============ 面板 2：项目填报（report.js 渲染） ============ -->
+    <div id="report-panel"></div>
+  </div>
+
+  <!-- 登录门禁：内容由 auth.js 渲染；未登录时覆盖全屏，登录成功后隐藏 -->
+  <div id="auth-gate" class="auth-gate" hidden></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

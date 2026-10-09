@@ -1,0 +1,68 @@
+{
+  "productName": "QuickNote",
+  "version": "1.6.3",
+  "identifier": "com.quicknote.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "QuickNote",
+        "width": 960,
+        "height": 840,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "minWidth": 460,
+        "minHeight": 400,
+        "alwaysOnTop": false,
+        "backgroundColor": "#ffffff",
+        "visible": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --no-sandbox"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "signingIdentity": null,
+      "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Liufengyuan-zzz/quicknote/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxMTMzNDU5QTI2QzIyMkIKUldRcklteWlXVFFUUVZ1T3dsdU9hbnZyaXhCQUZmS1NKUzFMQjE0VlphcStsMGpTOExML2JwMHAK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
