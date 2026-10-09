@@ -121,6 +121,30 @@ jobs:
             "$VITE_CLOUD_ENDPOINT" "$VITE_CLOUD_KEY" > .env.production.local
           echo "已写入 .env.production.local（值不打印）"
 
+      # ---- 云端 key 有效性校验（拦下「包能构建，但登录就 401 invalid_client」的坏包）----
+      # 用空 body POST 发码端点：key 有效 → 400「请输入手机号或邮箱」；key 无效/被吊销 → 401 invalid_client。
+      # 这样在构建阶段就能发现 Secrets 里的 key 与线上不一致（例如 key 轮换后只改了本地 .env.local，
+      # 忘了同步 GitHub Secrets）—— 比等用户装完点登录才发现要早得多。
+      - name: Verify cloud key is live-valid
+        shell: bash
+        env:
+          VITE_CLOUD_ENDPOINT: ${{ secrets.VITE_CLOUD_ENDPOINT }}
+          VITE_CLOUD_KEY: ${{ secrets.VITE_CLOUD_KEY }}
+        run: |
+          resp=$(curl -s --max-time 30 -X POST \
+            "$VITE_CLOUD_ENDPOINT/.cloud/auth/v1/verification" \
+            -H "x-wb-webapp-access-key: $VITE_CLOUD_KEY" \
+            -H "Content-Type: application/json" -d '{}')
+          if echo "$resp" | grep -q 'invalid_client'; then
+            echo "::error::VITE_CLOUD_KEY 无效或已被吊销（invalid_client）。请到仓库 Settings→Secrets and variables→Actions 把 VITE_CLOUD_KEY 更新为当前有效的 publishable key。"
+            exit 1
+          fi
+          if echo "$resp" | grep -q '请输入手机号或邮箱\|invalid_argument'; then
+            echo "云端 key 有效（服务端已识别 client）：$resp"
+          else
+            echo "::warning::云端 key 校验结果异常：$resp"
+          fi
+
       # ---- macOS 签名/公证凭据准备 ----
       # 用 shell 判断而不是直接 `env: APPLE_CERTIFICATE: ${{ secrets.X }}`，原因是：
       # secrets 未配置时 GitHub 会把该变量设成**空字符串**，而 Tauri 用 var_os() 读环境变量，
