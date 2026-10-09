@@ -29,7 +29,9 @@ publish-update.py — 生成 Tauri 自动更新清单 latest.json（交给 GitHu
 import argparse
 import json
 import os
+import plistlib
 import sys
+import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -43,7 +45,41 @@ PLATFORM_BY_SUFFIX = [
 
 
 def die(msg: str) -> None:
+    """报错退出。
+
+    GitHub Actions 只把 ``::error::`` 开头的行显示成运行页上的注解，
+    否则失败原因只埋在整页日志里 —— 本项目就为此多花过一轮排查。
+    注解不支持换行，因此把续行压成一行再输出；完整信息仍走 stderr。
+    """
+    lines = [l.strip() for l in msg.split('\n') if l.strip()]
+    flat = lines[0] + (' ｜ ' + ' ｜ '.join(lines[1:]) if len(lines) > 1 else '')
+    print(f'::error::{flat}')
     sys.exit(f'❌ {msg}')
+
+
+def macos_bundle_version(targz: Path) -> str:
+    """从 .app.tar.gz 内部读出 CFBundleShortVersionString。
+
+    为什么需要这个函数：macOS 更新包的名字固定是 ``<productName>.app.tar.gz``，
+    **天生不含版本号**（Tauri 官方约定），所以「文件名里必须有本次版本号」这条防呆
+    对 macOS 不成立 —— 这正是 v1.6.3 第一次发版时发布步骤失败的原因。
+    直接读包内 Info.plist 反而比看文件名更硬：它证明的是真正打进包里的版本。
+    """
+    try:
+        with tarfile.open(targz, 'r:gz') as tf:
+            for member in tf.getmembers():
+                if member.isfile() and member.name.endswith('Contents/Info.plist'):
+                    fh = tf.extractfile(member)
+                    if fh is None:
+                        continue
+                    info = plistlib.loads(fh.read())
+                    ver = info.get('CFBundleShortVersionString') or ''
+                    if ver:
+                        return str(ver)
+    except Exception:
+        # 读不出来不算错，交给调用方降级处理（见下）
+        pass
+    return ''
 
 
 def find_updater_artifacts(root: Path, version: str):
@@ -51,8 +87,10 @@ def find_updater_artifacts(root: Path, version: str):
 
     三层校验，每一层都对应一种「构建成功但用户更新不了/更新错」的真实故障：
       1. 同平台出现多个候选 → 报错。产物目录里混进历史版本时，盲目取第一个会发出旧包。
-      2. 文件名不含本次版本号 → 报错。三处版本号（package.json / Cargo.toml /
+      2. 版本号对不上 → 报错。三处版本号（package.json / Cargo.toml /
          tauri.conf.json）不一致是常见失误，会导致清单版本与实际包不符。
+         ⚠️ 核验方式分平台：Windows 看文件名（含版本）；macOS 包名**不含版本**，
+         改读包内 Info.plist —— 别一刀切按文件名判，那会把正常的 macOS 包判死。
       3. 缺同名 .sig → 报错。Tauri 在没有签名私钥时是**静默跳过**签名的。
     """
     found = {}
@@ -76,7 +114,21 @@ def find_updater_artifacts(root: Path, version: str):
                 + '\n   发布目录里应只含本次构建的产物（不要堆积历史版本）。')
 
         path = cands[0]
-        if version not in path.name:
+
+        # ---- 版本号核验（分平台）----
+        if suffix == '.app.tar.gz':
+            inner = macos_bundle_version(path)
+            if inner and inner != version:
+                die(f'{platform} 更新包内版本号与配置不一致：\n'
+                    f'   包内 Info.plist:      {inner}\n'
+                    f'   tauri.conf.json 版本: {version}\n'
+                    f'   （package.json / Cargo.toml / tauri.conf.json 三处必须一致）')
+            if inner:
+                print(f'   ℹ️ {path.name} 包内版本 = {inner}'
+                      f'（macOS 包名不含版本号，属官方约定，改从包内校验）')
+            else:
+                print(f'   ⚠️ {path.name} 未能读出版本号，本项校验跳过（构建与签名校验仍有效）')
+        elif version not in path.name:
             die(f'{platform} 更新包文件名与版本号不一致：\n'
                 f'   产物名:              {path.name}\n'
                 f'   tauri.conf.json 版本: {version}\n'
@@ -132,12 +184,17 @@ def build_manifest(artifacts, version, repo, tag, notes):
         }
         for platform, (path, signature) in artifacts.items()
     }
-    return {
+    manifest = {
         'version': version,
-        'notes': notes,
         'pub_date': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'platforms': platforms,
     }
+    # notes 是可选项。刻意留空而不是填 tag 名：App 的更新提示条会另起一段显示它，
+    # 填 tag 的话就成了「发现新版本 v1.6.3 · v1.6.3」这种重复。
+    # 需要时在 CI 用 --notes 显式传入。
+    if notes:
+        manifest['notes'] = notes
+    return manifest
 
 
 def main() -> None:
@@ -149,6 +206,7 @@ def main() -> None:
     ap.add_argument('--tag', default=os.environ.get('GITHUB_REF_NAME', ''),
                     help='本次发布的 tag（如 v1.6.3），默认取环境变量 GITHUB_REF_NAME')
     ap.add_argument('--out', default='latest.json', help='清单输出路径')
+    ap.add_argument('--notes', default='', help='更新说明（可选；留空则清单不含 notes 字段）')
     ap.add_argument('--dry-run', action='store_true', help='只打印，不写文件')
     args = ap.parse_args()
 
@@ -168,7 +226,7 @@ def main() -> None:
 
     verify_endpoint(Path(args.repo_root), args.repo, args.dry_run)
 
-    manifest = build_manifest(artifacts, version, args.repo, args.tag, args.tag)
+    manifest = build_manifest(artifacts, version, args.repo, args.tag, args.notes)
     print(f'📦 版本 {version}（tag {args.tag}），平台：{", ".join(manifest["platforms"])}')
     text = json.dumps(manifest, ensure_ascii=False, indent=2)
     print(text)
