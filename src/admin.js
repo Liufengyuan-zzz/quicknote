@@ -33,6 +33,7 @@ import {
 } from './cloud.js';
 import { exportXlsx } from './export.js';
 import { beginView, staleView } from './view-guard.js';
+import { renderAnalytics } from './analytics.js';
 
 const LS_ADMIN_OK = 'report_admin_ok';   // 本次会话是否已通过口令
 const LS_ADMIN_SUB = 'report_admin_sub'; // 上次停留的子页
@@ -164,12 +165,13 @@ export async function renderAdminView() {
   }
 
   currentSub = loadPref(LS_ADMIN_SUB, 'summary');
-  if (!['summary', 'history', 'projects', 'staff', 'customers'].includes(currentSub)) currentSub = 'summary';
+  if (!['summary', 'analytics', 'history', 'projects', 'staff', 'customers'].includes(currentSub)) currentSub = 'summary';
 
   body.innerHTML = `
     <div class="rp-adm-hubbar">
       <div class="rp-tabs rp-adm-tabs">
         <button class="rp-tab" data-sub="summary">今日填报</button>
+        <button class="rp-tab" data-sub="analytics">数据分析</button>
         <button class="rp-tab" data-sub="history">历史填报</button>
         <button class="rp-tab" data-sub="projects">项目管理</button>
         <button class="rp-tab" data-sub="staff">人员管理</button>
@@ -216,7 +218,8 @@ async function renderSub(silent = false) {
   const keepTop = silent && scroller ? scroller.scrollTop : null;
   if (!silent) host.innerHTML = '<div class="rp-loading">加载中…</div>';
   try {
-    if (currentSub === 'history') await renderHistorySub(host, t);
+    if (currentSub === 'analytics') await renderAnalytics(host, t);
+    else if (currentSub === 'history') await renderHistorySub(host, t);
     else if (currentSub === 'projects') await renderProjectsSub(host, t);
     else if (currentSub === 'staff') await renderStaffSub(host, t);
     else if (currentSub === 'customers') await renderCustomersSub(host, t);

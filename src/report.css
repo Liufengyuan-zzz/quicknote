@@ -911,3 +911,204 @@ body.tab-report #report-panel { display: flex; }
 
 .report-toast.show { opacity: 1; transform: translate(-50%, 0); }
 .report-toast.err { background: var(--danger); }
+
+/* ================================================================
+   数据分析工作台（analytics.js，管理员中心「数据分析」子页）
+   ================================================================ */
+
+/* 顶部：范围选择 + 说明 */
+.an-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.an-bar .an-range { flex: 0 0 auto; width: 9rem; }
+
+.an-bar-hint {
+  font-size: 0.66rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* KPI 卡片 */
+.an-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.an-stat {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.an-stat b {
+  font-size: 1.02rem;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.an-stat span {
+  font-size: 0.6rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 图表网格：2 列，趋势图占满两列 */
+.an-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.an-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  min-width: 0;
+}
+
+.an-card.wide { grid-column: 1 / -1; }
+
+.an-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.an-card-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.an-card-body { min-height: 0; }
+
+/* 趋势图 SVG 占满卡片宽度 */
+.an-svg { display: block; width: 100%; height: auto; }
+
+/* 趋势图图例 */
+.an-trend-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.62rem;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.an-trend-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.an-sq { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+.an-line {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  background: #f59e0b;
+  border-radius: 1px;
+}
+
+/* 环形图 + 图例并排 */
+.an-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.an-donut { flex: 0 0 auto; width: 130px; height: 130px; }
+.an-legend { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 6px; }
+
+.an-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+}
+.an-legend-item i {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.an-legend-label { flex: 1; min-width: 0; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-legend-val { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.an-legend-val em { font-style: normal; color: var(--text-3); font-size: 0.62rem; margin-left: 3px; }
+
+/* 横向条形图 */
+.an-hbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.an-hbar-label {
+  flex: 0 0 34%;
+  min-width: 0;
+  font-size: 0.7rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.an-hbar-track {
+  flex: 1;
+  height: 12px;
+  background: var(--soft);
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.an-hbar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  min-width: 2px;
+  transition: width 0.4s ease;
+}
+
+.an-hbar-val {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  text-align: right;
+  font-size: 0.68rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.an-empty {
+  color: var(--text-3);
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 18px 0;
+}
+
+/* 窄窗口：KPI 卡片收成两列，图表单列 */
+@media (max-width: 640px) {
+  .an-stats { grid-template-columns: repeat(2, 1fr); }
+  .an-grid { grid-template-columns: 1fr; }
+  .an-hbar-label { flex-basis: 42%; }
+}
