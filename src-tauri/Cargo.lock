@@ -2607,7 +2607,7 @@ dependencies = [
 
 [[package]]
 name = "quicknote"
-version = "1.6.5"
+version = "1.6.6"
 dependencies = [
  "serde",
  "serde_json",
