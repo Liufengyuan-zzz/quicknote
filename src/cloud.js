@@ -598,6 +598,25 @@ export function fetchRecentTasks(limit = 200) {
   return cachedRead(`recent:${limit}`, () => loadRecentTasks(limit));
 }
 
+/** 某个人的最近填报记录（员工端「填报记录」筛「只看我的」用）。
+ *  必须服务端过滤：若取全员再在客户端筛，limit 会被别人的记录先占满，
+ *  本人的记录反而可能一条都刷不出来。 */
+async function loadRecentTasksByUser(limit, user) {
+  const cloud = await getCloud();
+  return unwrap(
+    cloud.database
+      .from('task_entries')
+      .select('id,entry_date,user_name,project_code,project_name,task_text,hours,source,task_id,task_name')
+      .eq('user_name', user)
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  );
+}
+export function fetchRecentTasksByUser(limit = 200, user) {
+  return cachedRead(`recent:${limit}:${user || '*'}`, () => loadRecentTasksByUser(limit, user));
+}
+
 /** 按日期范围查（管理员汇总用）。from/to 均为 YYYY-MM-DD，闭区间。 */
 async function loadTasksInRange(from, to, limit) {
   const cloud = await getCloud();

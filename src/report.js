@@ -16,7 +16,7 @@
 import {
   fetchStaff, fetchProjects, fetchTasksByDate, addTask, deleteTask, updateTaskHours,
   fetchFollowups, addFollowup, fetchReviews, addReview, verifyAdminPassword, fetchCustomers,
-  fetchProjectTasks, warmCache, peekCache,
+  fetchProjectTasks, warmCache, peekCache, fetchRecentTasks, fetchRecentTasksByUser,
   isExemptRole,
 } from './cloud.js';
 import { renderAdminView, markAdminUnlocked } from './admin.js';
@@ -70,15 +70,15 @@ function savePref(k, v) {
 function isAdminIdentity() { return currentUser === ADMIN_USER; }
 
 /** 按身份显隐顶部 tab：
- *  普通身份 → 四个填报 tab，「管理」隐藏；
+ *  普通身份 → 五个填报/浏览 tab，「管理」隐藏；
  *  管理员   → 整条外层 tab 隐藏（管理页自带一层子页 tab，不需要两层），
- *             也不产生填报记录；管理员要的项目维护在管理中枢里。 */
+ *             也不产生填报记录；管理员要的全员记录在管理中枢「历史填报」里。 */
 function applyRoleTabs() {
   const admin = isAdminIdentity();
   const bar = document.querySelector('.rp-tabs');
   if (bar) bar.style.display = admin ? 'none' : '';
-  // 普通身份：四个填报 / 浏览 tab 可见，「管理」入口隐藏
-  ['task', 'followup', 'review', 'manage'].forEach(v => {
+  // 普通身份：五个填报 / 浏览 tab 可见，「管理」入口隐藏
+  ['task', 'followup', 'review', 'manage', 'records'].forEach(v => {
     const btn = document.querySelector(`.rp-tab[data-view="${v}"]`);
     if (btn) btn.style.display = admin ? 'none' : '';
   });
@@ -89,7 +89,7 @@ function applyRoleTabs() {
 /** 身份与视图不匹配时归位（如上次停留的 tab 在切换身份后已不可见） */
 function normalizeView() {
   if (isAdminIdentity()) {
-    if (['task', 'followup', 'review'].includes(currentView)) currentView = 'admin';
+    if (['task', 'followup', 'review', 'records'].includes(currentView)) currentView = 'admin';
   } else if (currentView === 'admin') {
     currentView = 'task';
   }
@@ -117,6 +117,7 @@ export function mountReport() {
       <button data-view="followup" class="rp-tab">客户跟进</button>
       <button data-view="review"   class="rp-tab">完工回访</button>
       <button data-view="manage"   class="rp-tab">项目清单</button>
+      <button data-view="records"  class="rp-tab">填报记录</button>
       <button data-view="admin"    class="rp-tab admin">管理</button>
     </div>
     <div id="rp-body" class="rp-body"></div>
@@ -127,7 +128,7 @@ export function mountReport() {
   currentView = loadPref(LS_VIEW, 'task');
   // 旧版本残留的 history 视图已并入「管理」中枢
   if (currentView === 'history') currentView = 'admin';
-  if (!['task', 'followup', 'review', 'manage', 'admin'].includes(currentView)) {
+  if (!['task', 'followup', 'review', 'manage', 'records', 'admin'].includes(currentView)) {
     currentView = 'task';
   }
   normalizeView();   // 上次可能是管理员身份停留的「管理」，或反之 —— 先按当前身份归位
@@ -389,6 +390,7 @@ async function renderBody() {
   if (currentView === 'followup') return renderFollowupView();
   if (currentView === 'review') return renderReviewView();
   if (currentView === 'manage') return renderManageView();
+  if (currentView === 'records') return renderRecordsView();
 }
 
 /* ---------- 需求 5：每日任务 ---------- */
@@ -1021,4 +1023,95 @@ function miniRow(p) {
     <span class="rp-proj-name">${esc(p.name || '')}</span>
     <span class="rp-proj-meta">${esc(p.project_mgr || '')}</span>
   </div>`;
+}
+
+/* ---------- 填报记录（全员可见；可筛「只看我的」） ----------
+ * 员工端浏览视图：默认看全员最近记录，一键切「只看我的」。
+ * 只读 —— 删除/改工时仍在「每日任务」里对自己当天记录操作。
+ * 取数走服务端过滤（见 cloud.js 的 fetchRecentTasks*）：切「只看我的」时
+ * 若在客户端筛，别人的记录会先占满 limit，本人的反而刷不出来。 */
+
+const REC_LIMIT = 300;   // 单次拉取上限
+let recScope = 'all';    // all | mine，跨切页保留
+
+async function renderRecordsView() {
+  const t = beginView();
+  const body = document.getElementById('rp-body');
+  const mine = recScope === 'mine';
+  // 命中缓存就先渲染，避免闪一下「加载中」
+  const cached = peekCache(mine ? `recent:${REC_LIMIT}:${currentUser}` : `recent:${REC_LIMIT}`);
+  if (!Array.isArray(cached)) body.innerHTML = '<div class="rp-loading">加载填报记录…</div>';
+
+  let rows = [];
+  try {
+    rows = mine
+      ? (await fetchRecentTasksByUser(REC_LIMIT, currentUser)) || []
+      : (await fetchRecentTasks(REC_LIMIT)) || [];
+  } catch (e) {
+    if (staleView(t)) return;
+    body.innerHTML = `<div class="rp-error">读取失败：${esc(e.message)}</div>`;
+    return;
+  }
+  if (staleView(t)) return;            // 等待期间切走了 → 丢弃这次结果
+
+  body.innerHTML = `
+    <div class="rp-hist-bar">
+      <div class="rp-rec-seg">
+        <button class="rp-chip${mine ? '' : ' on'}" data-scope="all">全部人员</button>
+        <button class="rp-chip${mine ? ' on' : ''}" data-scope="mine">只看我的</button>
+      </div>
+      <span class="rp-hist-total">最近 ${rows.length} 条${
+        rows.length >= REC_LIMIT ? '（已达上限）' : ''}</span>
+    </div>
+    <div id="rp-rec-list">${recListHtml(rows)}</div>`;
+
+  body.querySelectorAll('.rp-chip[data-scope]').forEach(b =>
+    b.addEventListener('click', () => {
+      if (recScope === b.dataset.scope) return;
+      recScope = b.dataset.scope;
+      renderRecordsView();               // 切筛选项 → 重新取数（走各自的服务端过滤）
+    }));
+}
+
+function recListHtml(rows) {
+  if (!rows.length) {
+    return `<div class="rp-empty small">${
+      recScope === 'mine' ? '你还没有填报记录' : '还没有任何填报记录'}</div>`;
+  }
+  // 按日期倒序分组（与管理员「历史填报」同口径）
+  const groups = {};
+  rows.forEach(r => {
+    const d = String(r.entry_date || '').slice(0, 10);
+    (groups[d] = groups[d] || []).push(r);
+  });
+  const dates = Object.keys(groups).sort().reverse();
+  return dates.map(d => {
+    const list = groups[d];
+    const who = new Set(list.map(r => r.user_name)).size;
+    return `
+      <div class="rp-list-head">${esc(d)}
+        <span class="rp-count">${list.length} 条${
+          recScope === 'all' ? ` / ${who} 人` : ''}</span>
+      </div>
+      ${list.map(recordRow).join('')}`;
+  }).join('');
+}
+
+function recordRow(r) {
+  const isMe = r.user_name === currentUser;
+  const who = `<span class="rp-who${isMe ? ' me' : ''}">${esc(r.user_name)}</span>`;
+  const proj = r.project_code ? `<span class="rp-tag">${esc(r.project_code)}</span>` : '';
+  const tk = r.task_name ? `<span class="rp-tag tk">${esc(r.task_name)}</span>` : '';
+  return `<div class="rp-task-row muted">
+    <div class="rp-task-main">
+      <div class="rp-task-head">${who}${proj}${tk}${recHoursTag(r.hours)}</div>
+      <div class="rp-task-text">${esc(r.task_text || '（未填内容）')}</div>
+      ${r.project_name ? `<div class="rp-task-proj">${esc(r.project_name)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+/** 只读工时标签（记录页不做编辑，编辑入口在「每日任务」的工时 chip） */
+function recHoursTag(h) {
+  return h == null ? '' : `<span class="rp-tag hours" title="实际工时">⏱ ${Number(h)}h</span>`;
 }
