@@ -50,6 +50,14 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         // 更新装完后重启应用到新版本（macOS 必须显式重启；Windows 由安装器 /R 自动完成）
         .plugin(tauri_plugin_process::init())
+        // 单实例：第二次启动（再点桌面图标）不另开进程，而是唤起已隐藏到托盘的窗口。
+        // 回调在「已有实例」里触发：_argv/_cwd 是第二次启动传来的参数/工作目录。
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         // 点 X / Alt+F4 不退出，改为隐藏到系统托盘
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
