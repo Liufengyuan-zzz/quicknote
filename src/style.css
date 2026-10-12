@@ -81,6 +81,46 @@ header {
 #pin-btn { display: flex; align-items: center; }
 #pin-btn svg { display: block; }
 
+/* ============ 便签：本地存储说明条 ============ */
+.note-local-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--soft);
+  border-radius: 8px;
+}
+
+.note-local-hint {
+  font-size: 0.72rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-local-open {
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.note-local-open:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
 /* ============ Heatmap ============ */
 .heatmap-section {
   flex-shrink: 0;

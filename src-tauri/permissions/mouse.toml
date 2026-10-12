@@ -22,3 +22,8 @@ commands.allow = ["load_notes"]
 identifier = "allow-save-notes"
 description = "允许前端保存笔记数据（appDataDir/notes.json）"
 commands.allow = ["save_notes"]
+
+[[permission]]
+identifier = "allow-open-notes-dir"
+description = "允许前端用系统文件管理器打开便签数据所在文件夹"
+commands.allow = ["open_notes_dir"]

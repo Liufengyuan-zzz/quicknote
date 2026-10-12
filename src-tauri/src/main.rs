@@ -17,11 +17,16 @@ fn frontend_ready(window: tauri::Window, shown: tauri::State<Arc<AtomicBool>>) {
     }
 }
 
+/// 便签数据目录：%APPDATA%\com.quicknote.app（与 Tauri app_data_dir 一致）。
+/// 便签纯本地存储，数据文件 notes.json 就在这里。
+fn notes_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(std::env::var("APPDATA").unwrap_or_default())
+        .join("com.quicknote.app")
+}
+
 #[tauri::command]
 fn load_notes() -> Result<String, String> {
-    let dir = std::path::PathBuf::from(std::env::var("APPDATA").unwrap_or_default())
-        .join("com.quicknote.app");
-    let path = dir.join("notes.json");
+    let path = notes_dir().join("notes.json");
     match std::fs::read_to_string(&path) {
         Ok(content) => Ok(content),
         Err(_) => Ok(String::new()),
@@ -30,10 +35,32 @@ fn load_notes() -> Result<String, String> {
 
 #[tauri::command]
 fn save_notes(content: String) -> Result<(), String> {
-    let dir = std::path::PathBuf::from(std::env::var("APPDATA").unwrap_or_default())
-        .join("com.quicknote.app");
+    let dir = notes_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("notes.json"), &content).map_err(|e| e.to_string())
+}
+
+/// 打开便签数据所在文件夹（用系统文件管理器定位），方便用户备份/查看 notes.json
+#[tauri::command]
+fn open_notes_dir() -> Result<(), String> {
+    let dir = notes_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .arg(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    std::process::Command::new("xdg-open")
+        .arg(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn main() {
@@ -124,7 +151,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             frontend_ready,
             load_notes,
-            save_notes
+            save_notes,
+            open_notes_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

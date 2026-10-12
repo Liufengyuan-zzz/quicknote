@@ -15,6 +15,7 @@ const heatmapHint = document.getElementById("heatmap-hint");
 const selectedDateLabel = document.getElementById("selected-date-label");
 const heatmapDayStats = document.getElementById("heatmap-day-stats");
 const dateJumpInput = document.getElementById("date-jump");
+const openNotesDirBtn = document.getElementById("open-notes-dir-btn");
 
 function dateStr(d) {
   const y = d.getFullYear();
@@ -465,6 +466,23 @@ clearDoneBtn.addEventListener("click", clearDone);
 pinBtn.addEventListener("click", togglePin);
 todayBtn.addEventListener("click", goToToday);
 if (dateJumpInput) dateJumpInput.addEventListener("change", onDateJumpChange);
+
+// 打开便签数据所在的本地文件夹（由 Rust 侧用系统文件管理器打开）
+if (openNotesDirBtn) {
+  openNotesDirBtn.addEventListener("click", async () => {
+    if (!window.__TAURI_INTERNALS__) {
+      alert("仅桌面端支持打开数据文件夹");
+      return;
+    }
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("open_notes_dir");
+    } catch (e) {
+      console.error("打开数据文件夹失败：", e);
+      alert("打开失败：" + (e?.message || e));
+    }
+  });
+}
 
 /* ================================================================
    启动流程：先过登录门禁，再进入主界面

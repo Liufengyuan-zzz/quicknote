@@ -2163,6 +2163,12 @@
           "markdownDescription": "允许前端读取笔记数据（appDataDir/notes.json）"
         },
         {
+          "description": "允许前端用系统文件管理器打开便签数据所在文件夹",
+          "type": "string",
+          "const": "allow-open-notes-dir",
+          "markdownDescription": "允许前端用系统文件管理器打开便签数据所在文件夹"
+        },
+        {
           "description": "允许前端保存笔记数据（appDataDir/notes.json）",
           "type": "string",
           "const": "allow-save-notes",
