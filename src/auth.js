@@ -26,6 +26,49 @@ export function emailAllowed(email) {
   return String(email ?? '').trim().toLowerCase().endsWith('@' + ALLOWED_DOMAIN);
 }
 
+/* ============ 记住账号密码 ============ */
+
+/** 本地保存「记住的账号密码」的 key。密码做 base64 轻混淆（非加密），
+ *  只防止被顺手看到，防不住本机有意的读取 —— 共用电脑场景请勿勾选。 */
+const REMEMBER_KEY = 'qn_remember_auth';
+
+function b64e(s) {
+  try {
+    const bytes = new TextEncoder().encode(s);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  } catch { return ''; }
+}
+function b64d(s) {
+  try {
+    const bytes = Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch { return ''; }
+}
+
+/** 读回记住的 { email, password }；没有或损坏返回 null */
+function loadRemembered() {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || !o.email) return null;
+    return { email: o.email, password: typeof o.password === 'string' ? b64d(o.password) : '' };
+  } catch { return null; }
+}
+
+/** 保存 / 清除记住的账号密码。remember 为真且密码非空才落盘，否则清除。 */
+function saveRemembered(email, password, remember) {
+  try {
+    if (remember && email && password) {
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password: b64e(password) }));
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
+  } catch { /* 存储不可用：放弃，不影响登录 */ }
+}
+
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -164,7 +207,7 @@ export async function ensureSignedIn() {
     gateResolve = resolve;
     renderGate();
     const email = document.getElementById('auth-email');
-    if (email) email.focus();
+    if (email && !email.value) email.focus();   // 记住场景已预填并聚焦登录按钮，这里不抢焦点
   });
 }
 
@@ -295,6 +338,10 @@ async function onSubmit(ev) {
       if (error) throw error;
     }
     pendingOtp = null;
+    // 登录成功后，按「记住账号和密码」勾选状态保存 / 清除本机凭证。
+    // 仅当本次确实填了密码时才记录（老用户用验证码登录时密码留空 → 不记密码）。
+    const remember = $('#auth-remember')?.checked === true;
+    saveRemembered(email, val('#auth-pwd'), remember);
     await finishLogin();
   } catch (e) {
     console.error('[auth] 原始错误：', e);
@@ -349,6 +396,11 @@ function renderGate() {
           <i class="auth-hint" id="auth-pwd-hint">首次登录请设置（至少 6 位）；已注册过可留空</i>
         </label>
 
+        <label class="auth-remember">
+          <input type="checkbox" id="auth-remember" />
+          <span>记住账号和密码（保存在本机）</span>
+        </label>
+
         <p class="auth-msg" id="auth-msg"></p>
         <button type="submit" id="auth-submit" class="auth-primary">登录 / 注册</button>
       </form>
@@ -376,5 +428,21 @@ function renderGate() {
     email.addEventListener('input', () => { if (cdTimer) return; say(''); });
   }
   mode = 'otp';
-  setBusy(false);
+
+  // 记住账号密码：有则默认切到「密码登录」，并自动填入账号密码，用户直接点登录即可。
+  const remembered = loadRemembered();
+  if (remembered && remembered.email) {
+    mode = 'password';
+    switchMode('password');
+    const emailEl = $('#auth-email');
+    const pwdEl = $('#auth-pwd');
+    const cb = $('#auth-remember');
+    if (emailEl) emailEl.value = remembered.email;
+    if (pwdEl) pwdEl.value = remembered.password || '';
+    if (cb) cb.checked = true;
+    const submit = $('#auth-submit');
+    if (submit) submit.focus();
+  } else {
+    setBusy(false);
+  }
 }
